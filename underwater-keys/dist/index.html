@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description"
+        content="Explore Mila's world through a winding piano beneath the surface. Music, moments, and a résumé.">
+    <title>Mila — Portfolio</title>
+    <link rel="preconnect" href="https://w.soundcloud.com">
+    <link rel="preconnect" href="https://api.soundcloud.com">
+    <link rel="preconnect" href="https://cf-media.sndcdn.com">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body><canvas id="ocean" aria-hidden="true"></canvas>
+    <div class="grain"></div>
+    <svg class="y2k-ornaments" viewBox="0 0 1200 900" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="chrome" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff"/><stop offset=".18" stop-color="#b7c8df"/><stop offset=".32" stop-color="#faffff"/><stop offset=".43" stop-color="#344459"/><stop offset=".50" stop-color="#080b18"/><stop offset=".56" stop-color="#e8edff"/><stop offset=".74" stop-color="#718398"/><stop offset=".86" stop-color="#fff"/><stop offset="1" stop-color="#8e9aae"/></linearGradient><filter id="metal"><feDropShadow dx="2" dy="4" stdDeviation="2" flood-color="#000" flood-opacity=".8"/></filter></defs><g fill="none" stroke="url(#chrome)" stroke-width="9" filter="url(#metal)"><path class="chrome-heart" d="M990 150C965 128 905 85 924 57C940 34 974 42 987 64C1003 38 1035 34 1052 55C1077 86 1019 128 990 150Z"/><ellipse cx="265" cy="192" rx="175" ry="32" transform="rotate(-19 265 192)" stroke-width="3"/><path d="M100 740C75 718 19 674 39 647C55 626 85 632 99 653C113 630 145 625 161 647C181 676 125 721 100 740Z" stroke-width="11"/></g><g fill="#fff"><path d="m1102 175 5 24 23 5-23 6-5 25-6-25-23-6 23-5z"/><path d="m174 688 4 17 16 4-16 4-4 17-4-17-16-4 16-4z"/><path d="m432 103 4 21 21 4-21 5-4 21-5-21-21-5 21-4z"/></g></svg>
+    <header><a class="wordmark" href="./">mila</a></header>
+    <main>
+        <div id="instrument"><svg id="piano" viewBox="0 0 1200 620" role="group"
+                aria-label="Interactive winding piano portfolio"></svg></div>
+        <nav aria-label="Explore Mila"><a href="assets/resume.pdf" target="_blank" rel="noopener">01 <span>Résumé</span>
+                ↗</a><a href="https://www.instagram.com/spiralminerva" target="_blank" rel="noopener">02
+                <span>Instagram</span> ↗</a><a href="https://www.youtube.com/@milalien" target="_blank"
+                rel="noopener">03 <span>YouTube</span> ↗</a><a
+                href="https://open.spotify.com/artist/6q5ndwXMAd7JB3DprBBMHG" target="_blank" rel="noopener">04
+                <span>Spotify</span> ↗</a><a href="https://soundcloud.com/marylou-milakim" target="_blank"
+                rel="noopener">05 <span>SoundCloud</span> ↗</a></nav>
+        <section id="player" hidden aria-label="Media player">
+            <div class="player-head"><span id="playing" aria-live="polite"></span><button id="close-player"
+                    aria-label="Close player">×</button></div>
+            <div id="embed"><div id="audio-players"></div><div id="video-player"></div></div>
+        </section>
+    </main>
+    <footer><span>MILA MARIA KAUMANNS</span></footer>
+    <div id="audio-warmup" aria-hidden="true"></div>
+    <script src="https://w.soundcloud.com/player/api.js" defer></script>
+    <script src="app.js" defer></script>
+</body>
+
+</html>
