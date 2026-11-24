@@ -14,7 +14,7 @@ function prepareAudio(index) {
     frame.inert = true; frame.className = 'audio-frame'; frame.title = item[0]; frame.allow = 'autoplay'; frame.scrolling = 'no';
     frame.src = 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(trackUrl(item)) + '&auto_play=false&color=%23bdd78e&visual=false&show_artwork=false&show_teaser=false';
     warmup.append(frame);
-    const entry = {frame, widget: null, ready: false, wanted: false, retry: null};
+    const entry = {frame, widget: null, ready: false, wanted: false, retry: null, started: false, requestedAt: 0};
     audioCache.set(index, entry);
     const connect = () => {
         if (!window.SC?.Widget || entry.widget) return;
@@ -25,8 +25,17 @@ function prepareAudio(index) {
         });
         entry.widget.bind(SC.Widget.Events.PLAY, () => {
             if (currentAudio !== entry || currentKind !== 'soundcloud') { entry.widget.pause(); return; }
-            clearTimeout(entry.retry); entry.wanted = false;
+            // PLAY can arrive before buffering/autoplay has actually succeeded.
+            // Only advancing playback proves that the visitor is hearing the track.
+            if (!entry.started) document.querySelector('#playing').textContent = 'Starting · ' + item[0];
+        });
+        entry.widget.bind(SC.Widget.Events.PLAY_PROGRESS, progress => {
+            if (currentAudio !== entry || currentKind !== 'soundcloud' || progress.currentPosition < 100) return;
+            entry.started = true; entry.wanted = false; clearTimeout(entry.retry);
             document.querySelector('#playing').textContent = item[0];
+        });
+        entry.widget.bind(SC.Widget.Events.PAUSE, () => {
+            if (currentAudio === entry && entry.started) document.querySelector('#playing').textContent = 'Paused · ' + item[0];
         });
         entry.widget.bind(SC.Widget.Events.ERROR, () => {
             clearTimeout(entry.retry);
@@ -43,14 +52,20 @@ function prepareAudio(index) {
     if (!entry.widget) document.querySelector('#soundcloud-api').addEventListener('load', connect, {once:true});
     return entry;
 }
-function requestPlayback(entry, attempt = 0) {
+function requestPlayback(entry) {
     clearTimeout(entry.retry);
     if (!entry.wanted || currentAudio !== entry || currentKind !== 'soundcloud' || !entry.widget) return;
+    const elapsed = performance.now() - entry.requestedAt;
+    if (elapsed > 15000) {
+        entry.wanted = false;
+        document.querySelector('#playing').textContent = 'Tap ▶ in the player to start audio';
+        return;
+    }
     entry.widget.play();
-    // READY alone does not mean the stream is buffered. Keep the original click
-    // pending until PLAY, without retrying after a user pauses actual playback.
-    if (attempt < 12) entry.retry = setTimeout(() => requestPlayback(entry, attempt + 1), 400);
-    else document.querySelector('#playing').textContent = 'SoundCloud is taking longer — use the play button below';
+    // Keep the click pending through buffering and premature PLAY events.
+    // Stop immediately once the playback position actually advances.
+    entry.retry = setTimeout(() => requestPlayback(entry), 750);
+    if (elapsed > 3500) document.querySelector('#playing').textContent = 'Waiting for SoundCloud · tap ▶ below if paused';
 }
 function stopAudio() {
     if (currentAudio) { currentAudio.wanted = false; clearTimeout(currentAudio.retry); currentAudio.widget?.pause(); currentAudio.frame.classList.remove('current'); currentAudio.frame.inert = true; }
@@ -68,7 +83,7 @@ function play(kind, index, key) {
     if (kind === 'soundcloud') {
         const entry = prepareAudio(index);
         if (entry) {
-            currentAudio = entry; entry.wanted = true;
+            currentAudio = entry; entry.wanted = true; entry.started = false; entry.requestedAt = performance.now();
             entry.frame.classList.add('current'); entry.frame.inert = false;
             // Call play inside the key gesture, and again on READY for a cold player.
             requestPlayback(entry);
@@ -103,7 +118,29 @@ prepareAudio(0);
 // Preconnect a second likely key without waiting for a hover.
 setTimeout(() => prepareAudio(1), 350);
 // Each key is an extruded quadrilateral following a sinuous spatial ribbon.
-const N = 24; function corners(t, width = 1, black = false) { let c = center(t), a = center(t - .001), b = center(t + .001), dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l; let h = black ? 83 : 138; let offset = black ? -52 : 0; return [[c[0] - dx / l * 22.3 * width + nx * (-h + offset), c[1] - dy / l * 22.3 * width + ny * (-h + offset) * .70], [c[0] + dx / l * 22.3 * width + nx * (-h + offset), c[1] + dy / l * 22.3 * width + ny * (-h + offset) * .70], [c[0] + dx / l * 22.3 * width + nx * (h + offset), c[1] + dy / l * 22.3 * width + ny * (h + offset) * .70], [c[0] - dx / l * 22.3 * width + nx * (h + offset), c[1] - dy / l * 22.3 * width + ny * (h + offset) * .70]] }
+const N = 24;
+// Adjacent keys use the very same cross-section of the curved ribbon.
+// Independent rotated rectangles left wedges and intersections on bends.
+function ribbonEdge(t, offset, lift = 0) {
+    const c = center(t), a = center(t - .0001), b = center(t + .0001);
+    const dx = b[0] - a[0], dy = b[1] - a[1], length = Math.hypot(dx, dy);
+    return [c[0] - dy / length * offset, c[1] + dx / length * offset * .70 - lift];
+}
+function whiteBackEdge(t) {
+    // Follow the actual straight segments of the white-key outline.
+    const key = Math.floor(t * (N - 1) + .5);
+    const left = (key - .5) / (N - 1), right = (key + .5) / (N - 1);
+    const a = ribbonEdge(left, -138), b = ribbonEdge(right, -138);
+    const fraction = (t - left) / (right - left);
+    return a.map((value, axis) => value + (b[axis] - value) * fraction);
+}
+function corners(t, width = 1, black = false) {
+    const half = width / (2 * (N - 1));
+    const back = -138, front = black ? 22 : 138, lift = black ? 12 : 0;
+    return [black ? whiteBackEdge(t-half) : ribbonEdge(t-half,back),
+        black ? whiteBackEdge(t+half) : ribbonEdge(t+half,back),
+        ribbonEdge(t+half,front,lift),ribbonEdge(t-half,front,lift)];
+}
 const defs = el('defs', {}, svg);
 const wear = el('pattern', {id:'key-wear',width:43,height:67,patternUnits:'userSpaceOnUse'}, defs);
 el('path', {d:'M4 9l2 19M30 40l1 17M12 61l8-2M39 4l-3 7',stroke:'#463e37','stroke-opacity':'.20','stroke-width':'.8'}, wear);
@@ -123,6 +160,18 @@ let reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; const jell
 {x:.28,y:.36,r:20,c:[153,184,247],s:6,z:.25},
 {x:.65,y:.21,r:15,c:[163,185,251],s:7,z:.2},
 {x:.52,y:.82,r:20,c:[133,175,240],s:8,z:.3},
+{x:.08,y:.12,r:36,c:[144,159,242],s:11,z:.5},
+{x:.23,y:.19,r:25,c:[150,136,244],s:12,z:.35},
+{x:.57,y:.09,r:22,c:[130,179,241],s:13,z:.3},
+{x:.78,y:.12,r:29,c:[163,143,245],s:14,z:.4},
+{x:.93,y:.42,r:32,c:[126,165,244],s:15,z:.5},
+{x:.12,y:.85,r:30,c:[159,139,240],s:16,z:.45},
+{x:.33,y:.73,r:37,c:[132,165,247],s:17,z:.55},
+{x:.44,y:.63,r:15,c:[158,180,248],s:18,z:.2},
+{x:.83,y:.9,r:25,c:[158,143,246],s:19,z:.4},
+{x:.55,y:.3,r:19,c:[130,169,235],s:20,z:.25},
+{x:.04,y:.48,r:23,c:[160,145,247],s:21,z:.35},
+{x:.62,y:.7,r:23,c:[134,150,238],s:22,z:.3},
 {x:-.025,y:.23,r:133,c:[144,137,239],s:9,z:1.8,near:true},
 {x:1.04,y:.78,r:150,c:[113,161,235],s:10,z:2,near:true}
 ]; function jelly(j, t, layer = ctx) { const ctx=layer; let x=j.x*w+Math.sin(t*.16+j.s)*25-swimX*j.z*38, y=j.y*h+Math.cos(t*.21+j.s)*28-swimY*j.z*30, r=j.r*Math.min(w/900,1)*(1+Math.sin(t*1.05+j.s)*.035), col=j.c.join(','); ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(j.s) * .22); let glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.8); glow.addColorStop(0, `rgba(${col},.16)`); glow.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = glow; ctx.fillRect(-r * 3, -r * 3, r * 6, r * 6); for (let k = 0; k < 16; k++) { ctx.beginPath(); let sx = (k / 15 - .5) * r * 1.6; ctx.moveTo(sx, 12); for (let n = 1; n < 18; n++) { let yy = n * r * .12, xx = sx + Math.sin(n * .45 + t * .8 + k) * n * 1.3; ctx.lineTo(xx, yy) } ctx.strokeStyle = `rgba(${col},${.12 + (k % 3) * .09})`; ctx.lineWidth = k % 4 === 0 ? 2.4 : .7; ctx.stroke() } let g = ctx.createRadialGradient(-r * .25, -r * .4, 2, 0, -r * .1, r * 1.1); g.addColorStop(0, `rgba(${col},.12)`); g.addColorStop(.7, `rgba(${col},.3)`); g.addColorStop(1, `rgba(${col},.65)`); ctx.beginPath(); ctx.moveTo(-r, 8); ctx.bezierCurveTo(-r, -r * 1.2, r, -r * 1.2, r, 8); ctx.bezierCurveTo(r * .5, 25, -r * .5, 25, -r, 8); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = `rgba(${col},.7)`; ctx.lineWidth = 1; ctx.stroke(); for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.moveTo(0, -r * .8); ctx.quadraticCurveTo((k - 3) * r * .18, -r * .3, (k - 3) * r * .29, 10); ctx.strokeStyle = `rgba(${col},.2)`; ctx.stroke() } ctx.restore() }
@@ -167,3 +216,7 @@ function draw(ms) {
  }
 }
 requestAnimationFrame(draw);
+
+const invitation = el('g', {class:'piano-invitation','pointer-events':'none','aria-hidden':'true'}, svg);
+el('text', {x:440,y:105,transform:'rotate(-8 440 105)'}, invitation).textContent='press here';
+el('path', {d:'M 536 106 C 591 83 620 121 594 157 C 575 184 535 180 518 216 M 510 200 L 518 218 L 536 206',fill:'none',stroke:'currentColor','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'}, invitation);
