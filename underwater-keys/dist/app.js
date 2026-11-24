@@ -218,5 +218,5 @@ function draw(ms) {
 requestAnimationFrame(draw);
 
 const invitation = el('g', {class:'piano-invitation','pointer-events':'none','aria-hidden':'true'}, svg);
-el('text', {x:440,y:105,transform:'rotate(-8 440 105)'}, invitation).textContent='press here';
-el('path', {d:'M 536 106 C 591 83 620 121 594 157 C 575 184 535 180 518 216 M 510 200 L 518 218 L 536 206',fill:'none',stroke:'currentColor','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'}, invitation);
+el('text', {x:440,y:105,transform:'rotate(-8 440 105)'}, invitation).textContent='Press the keyboard';
+//el('path', {d:'M 536 106 C 591 83 620 121 594 157 C 0575 184 535 180 518 216 M 510 200 L 518 218 L 536 206',fill:'none',stroke:'currentColor','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'}, invitation);
